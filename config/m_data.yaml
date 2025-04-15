@@ -1,0 +1,61 @@
+# data-driven dataset (label)
+augdata_path: 'dataset/Marmousi_train_dataset.mat'
+augdata_traces: 20
+augdata_layers: 512
+augdata_usetraces:
+  start: null
+  stop: 20
+  step: 1
+augdata_uselayers:
+ start: null
+ stop: 512
+ step: null
+
+# physics-driven dataset (without label)
+realdata_path: 'dataset/Marmousi_test_dataset.mat'
+realdata_traces: 3401
+realdata_layers: 512
+realdata_usetraces:
+  start: null
+  stop: 512
+  step: 1
+realdata_uselayers:
+ start: null
+ stop: null
+ step: 1
+
+# predict dataset (same as physics-driven dataset)
+testdata_path: 'dataset/Marmousi_test_dataset.mat'
+testdata_traces: 3401
+testdata_layers: 512
+testdata_usetraces:
+  start: null
+  stop: 3400
+  step: 1
+testdata_uselayers:
+ start: null
+ stop: null
+ step: 1
+
+# # wavelet param
+# wavelet:
+#   f0: 30 # 主频
+#   n0: 80
+#   dt0: 0.002
+
+#batchsize
+batchsize_predict: 10
+batchsize_data_driven: 10
+batchsize_physics_driven: 8
+
+Trace: 10
+Trace2: 1
+miu: 0.3
+eta: 0.3
+lam: 0.1
+theta_len: 15
+
+LearningRate: 1e-3
+epoch: 200
+save_path: 'weights_dir'
+

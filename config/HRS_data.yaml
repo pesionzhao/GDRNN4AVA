@@ -1,0 +1,82 @@
+# dataset
+# 训练集数据，仅用于train
+# 增广数据->用作数据驱动
+augdata_path: 'dataset/HRS_train.mat'
+augdata_traces: 6
+augdata_layers: 100
+augdata_usetraces:
+  start: null
+  stop: null
+  step: 1
+augdata_uselayers:
+ start: null
+ stop: 100
+ step: 1
+
+# 真实数据->用于模型驱动
+realdata_path: 'dataset/HRS_test.mat'
+realdata_traces: 130
+realdata_layers: 100
+realdata_usetraces:
+  start: null
+  stop: 100
+  step: 1
+realdata_uselayers:
+ start: null
+ stop: 100
+ step: 1
+
+# 测试集数据，仅用于predict
+testdata_path: 'dataset/HRS_test.mat'
+testdata_traces: 130
+testdata_layers: 100
+testdata_usetraces:
+  start: null
+  stop: null
+  step: null
+testdata_uselayers:
+ start: null
+ stop: null
+ step: null
+
+# testdata_path: 'dataset/4wellls_test_dataset.mat'
+# testdata_traces: 1151
+# testdata_layers: 1701
+# testdata_usetraces:
+#   start: null
+#   stop: 1700
+#   step: null
+# testdata_uselayers:
+#  start: null
+#  stop: 1024
+#  step: null
+
+# wavelet param
+wavelet:
+  f0: 30 # 主频
+  n0: 80
+  dt0: 0.002
+
+# predict
+batchsize: 10
+# Parameters
+BatchSize: 10
+BatchSize2: 8
+Trace: 10
+Trace2: 1
+miu: 0.4
+eta: 0.3
+lam: 0.3
+theta_len: 10
+
+# Parameters of btwfilter
+dt: 0.002
+f0: 5
+N: 2
+
+
+LearningRate: 1e-3
+
+epoch: 200
+save_path: 'weights_dir'
+
