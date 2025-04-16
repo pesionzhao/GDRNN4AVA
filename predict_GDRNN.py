@@ -1,7 +1,7 @@
 """
 @File    : predict_modelWithGD.py
 @Author  : Pesion
-@Date    : 2023/9/27
+@Date    : 2024/9/27
 @Desc    : 
 """
 import os
@@ -20,24 +20,26 @@ import logging
 
 parser = argparse.ArgumentParser(description='dual inversion predict script',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--weight', '-w', help='weight path', default="weights_dir/weights102/GDbest_56.pth")
+parser.add_argument('--weight', '-w', help='weight path', default="./weights_dir/weights/GDRNNbest_21.pth")
 parser.add_argument('--output', '-o', help='output file name', default=None)
 parser.add_argument('--device', '-d', help='device id', default="cuda:4")
 parser.add_argument('--name', '-n', help='save folder name', default="HRS")
 parser.add_argument('--cfg', '-c', help='yaml', default='config/m_data.yaml')
-parser.add_argument('--step', '-t', help='RNNs time step', default=5)
+parser.add_argument('--step', '-t', help='RNNs time step', type=int, default=7)
 args = parser.parse_args()
 # args = parser.parse_args(['--weights','./weights_dir/weights6/last.pth', '--device', 'cuda:0']) # custom_args
 config_path = args.cfg
+cfg = read_yaml(config_path=config_path) 
+cfg = argparse.Namespace(**cfg)
 weights_path = args.weight
 save_name = args.output
-time_step = args.step
+time_step = args.step if args.step is not None else int(cfg.time_step)
 
 # set save dir
 if save_name is None:
-    name_list = os.path.splitext(weights_path)[0].split('/')[-2:] # 获取文件名和上级目录名
-    save_name = "_".join(name_list) # 通过下划线连接
-# 将结果保存到output文件夹下
+    name_list = os.path.splitext(weights_path)[0].split('/')[-2:] 
+    save_name = "_".join(name_list)
+
 if not os.path.exists('./output'):
     os.mkdir('./output')
 savedir = os.path.join('./output', args.name)
@@ -57,8 +59,6 @@ logging.basicConfig(
 )
 
 device = torch.device(args.device)  
-cfg = read_yaml(config_path=config_path) 
-cfg = argparse.Namespace(**cfg)
 
 test_dataset = M_test_dataset(cfg.testdata_path, cfg.testdata_traces, cfg.testdata_layers, cfg.testdata_usetraces,
                               cfg.testdata_uselayers)
@@ -154,7 +154,6 @@ output_list = []
 i = 1
 for S_sample, M_sample_initial in test_dataloader:
     logging.info('%d th traces inversing' % (i * cfg.batchsize_predict))
-    # logging.info('S_sample.shape:{}'.format(S_sample.shape))
     S_sample, M_sample_initial = S_sample.to(device), M_sample_initial.to(device)
     output1 = model_driving(M_sample_initial, S_sample, wavemat)
     output_list.append(output1)
@@ -165,13 +164,5 @@ Inv_vp = output[:, 0, :].cpu().detach().numpy()
 Inv_vs = output[:, 1, :].cpu().detach().numpy()
 Inv_rho = output[:, 2, :].cpu().detach().numpy()
 
-# traces = Inv_vp.shape[0]//2
-# Inv_vp = np.hstack([Inv_vp[:traces], Inv_vp[traces:]])
-# Inv_vs = np.hstack([Inv_vs[:traces], Inv_vs[traces:]])
-# Inv_rho = np.hstack([Inv_rho[:traces], Inv_rho[traces:]])
-
 scio.savemat(os.path.join(savedir, save_name + '.mat'), {'vp': Inv_vp, 'vs': Inv_vs, 'rho': Inv_rho})
 
-# plt.figure()
-# plt.imshow(Inv_vp.T, aspect='auto')
-# plt.show()

@@ -9,14 +9,12 @@ import os
 import psutil
 import time
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import torch
 from torch.utils.data import DataLoader
 import scipy.io as scio
 from NetworkDataSet import M_train_dataset, M_test_dataset
 from UnetModel import UNetModel
-from ForwardModel.Zoeppritz import MyZoeppritzOneTheta, MyZoeppritzMultiTheta
+from ForwardModel.Zoeppritz import MyZoeppritzOneTheta
 import numpy as np
 from util.utils import read_yaml
 import argparse
@@ -26,8 +24,9 @@ parser = argparse.ArgumentParser(description='dual inversion train script',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--device', '-d', help='device id', default="cuda:4")
 parser.add_argument('--resume', '-r', help='resume path', default=None)
-parser.add_argument('--epoch', type=int, help='epochs', default=120)
+parser.add_argument('--epoch', type=int, help='epochs', default=None)
 parser.add_argument('--cfg', '-c', help='yaml', default='config/m_data.yaml')
+parser.add_argument('--step', '-t', help='RNNs time step', default=None)
 args = parser.parse_args()
 device = torch.device(args.device)
 
@@ -35,10 +34,10 @@ cfg = read_yaml(args.cfg)
 cfg = argparse.Namespace(**cfg)
 
 LearningRate = 1e-3
-epoch = args.epoch
+epoch = args.epoch if args.epoch is not None else cfg.epoch
 
 # RNNs time step
-time_step = 4
+time_step = args.step if args.step is not None else cfg.time_step
 
 zoeppritz = MyZoeppritzOneTheta.apply
 testmat = scio.loadmat(cfg.augdata_path)
@@ -47,6 +46,8 @@ testmat = scio.loadmat(cfg.augdata_path)
 Theta1 = np.radians(testmat['theta'][0])
 Theta2 = np.radians(testmat['theta'][1])
 Theta3 = np.radians(testmat['theta'][2])
+
+# we can inverse part of dataset by modifying uselayers
 input_len = cfg.augdata_uselayers['stop']
 
 wavemat = testmat['wavemat'][:input_len, :input_len]
@@ -57,9 +58,9 @@ def print_resource_usage(tag=""):
     gpu_mem = torch.cuda.memory_allocated(device) / 1024 ** 2 if torch.cuda.is_available() else 0
     gpu_mem_peak = torch.cuda.max_memory_allocated(device) / 1024 ** 2 if torch.cuda.is_available() else 0
 
-    print(f"[{tag}] CPU 内存使用: {cpu_mem:.2f} MB")
+    print(f"[{tag}] CPU Memory Use: {cpu_mem:.2f} MB")
     if torch.cuda.is_available():
-        print(f"[{tag}] 当前 GPU 显存: {gpu_mem:.2f} MB, 峰值: {gpu_mem_peak:.2f} MB")
+        print(f"[{tag}] Current GPU Memory Use: {gpu_mem:.2f} MB, peak: {gpu_mem_peak:.2f} MB")
 
 # elastic parameter to seismic data
 def seismic_forward(M_param):
@@ -98,33 +99,31 @@ def seismic_forward(M_param):
     return seis
 
 
-# 损失函数定义
-def loss(S_real, M_sample, M_pre_real, M_pre_sample):
+# loss function
+def loss(obs, label, pre_all, pre_label):
     """
     Args:
-        S_real: 真实地震数据
-        M_sample: 测井数据
-        M_pre_real: 预测测井数据->用于模型驱动(F(M_pre_real)-S_real)
-        M_pre_sample: 预测增广数据->用于数据驱动(M_sample-M_pre_sample)
+        obs: obs seismic data
+        label: log-well label 
+        pre_label: predicted label for data-driven
+        pre_all: predicted all elastic parameters for physics-driven
 
-    .. note::
-        :math:`Loss = \mu||M_{pre_sample}-M_{sample}||+(1-\mu)||S_{syn}-S_{real}||` \n
     Returns:
         loss
     """
-    M_pre_sample_ntrace = M_pre_sample.shape[0] if len(M_pre_sample.shape)==3 else 1
-    M_pre_real_ntrace = M_pre_real.shape[0] if len(M_pre_real.shape)==3 else 1
+    pre_label_ntrace = pre_label.shape[0] if len(pre_label.shape)==3 else 1
+    pre_all_ntrace = pre_all.shape[0] if len(pre_all.shape)==3 else 1
     # 数据约束 data-driven
-    data_loss = cfg.miu * torch.norm(M_pre_sample - M_sample, p=2)
+    data_loss = cfg.miu * torch.norm(pre_label - label, p=2)
     # 模型约束 physics-driven
-    Model_loss2 = (1 - cfg.miu) * torch.norm(seismic_forward(M_pre_real) - S_real, p=2)
+    Model_loss2 = (1 - cfg.miu) * torch.norm(seismic_forward(pre_all) - obs, p=2)
 
     # # TV约束 TV regularization
-    # pre_real_diff = torch.diff(M_pre_real,1,-1)
-    # pre_sample_diff = torch.diff(M_pre_sample,1,-1)
+    # pre_real_diff = torch.diff(pre_all,1,-1)
+    # pre_sample_diff = torch.diff(pre_label,1,-1)
     # tv_loss3 = TV_loss(pre_real_diff, torch.zeros_like(pre_real_diff))+TV_loss(pre_sample_diff,torch.zeros_like(pre_sample_diff))
 
-    logging.info('data_loss:{}  Model_loss2:{}'.format(data_loss / M_pre_sample_ntrace, Model_loss2 / M_pre_real_ntrace))
+    logging.info('data_loss:{}  Model_loss2:{}'.format(data_loss / pre_label_ntrace, Model_loss2 / pre_all_ntrace))
 
     loss_value = data_loss + Model_loss2
     return loss_value
@@ -169,11 +168,11 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=LearningRate, weight_decay=0.9)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.98)
 
-    # 增广数据->用作数据驱动 dataset for data-driven
+    # dataset for data-driven
     train_dataset1 = M_train_dataset(cfg.augdata_path, cfg.augdata_traces, cfg.augdata_layers, cfg.augdata_usetraces,
                                      cfg.augdata_uselayers)
     train_dataloader1 = DataLoader(dataset=train_dataset1, batch_size=cfg.batchsize_data_driven, shuffle=False, num_workers=0)
-    # 真实数据->用作模型驱动 dataset for physics-driven
+    # dataset for physics-driven
     train_dataset2 = M_test_dataset(cfg.realdata_path, cfg.realdata_traces, cfg.realdata_layers, cfg.realdata_usetraces,
                                     cfg.realdata_uselayers)
     train_dataloader2 = DataLoader(dataset=train_dataset2, batch_size=cfg.batchsize_physics_driven, shuffle=False, num_workers=0)
@@ -207,7 +206,7 @@ if __name__ == '__main__':
     best_loss = float('inf')
     for i in range(epoch):
         epoch_loss = 0
-        logging.info("---------Training: epoch = {} ---------".format(i + 1))
+        logging.info(f"---------Training: epoch = {i + 1} ---------")
         t0 = time.time()
 
         dataloader_iter = iter(train_dataloader1)
@@ -223,11 +222,11 @@ if __name__ == '__main__':
             M_sample, S_sample, M_sample_initial = M_sample.to(device), S_sample.to(device), M_sample_initial.to(device)
 
             # data-driven
-            M_pre_sample = gradient_descent(M_sample_initial, S_sample)
+            pre_label = gradient_descent(M_sample_initial, S_sample)
             # physics-driven
-            M_pre_real = gradient_descent(M_initial, S_real)
+            pre_all = gradient_descent(M_initial, S_real)
 
-            loss_value = loss(S_real, M_sample, M_pre_real, M_pre_sample)
+            loss_value = loss(S_real, M_sample, pre_all, pre_label)
             epoch_loss = epoch_loss + loss_value
 
             # optimizer step
@@ -237,18 +236,18 @@ if __name__ == '__main__':
             scheduler.step()
 
         lossLoader.append((epoch_loss / len(train_dataset1)).item())
-        logging.info("epoch{} loss is {}".format(i + 1, (epoch_loss / len(train_dataset1)).item()))
+        logging.info(f"epoch{i + 1} loss is {epoch_loss / len(train_dataset1).item()}")
         t1 = time.time()
-        logging.info('epoch{} execution time is {}'.format(i + 1, t1 - t0))
+        logging.info(f"epoch{i + 1} execution time is {t1 - t0}")
 
         if epoch_loss / len(train_dataset1) < best_loss:
             best_loss = epoch_loss / (len(train_dataset1))
-            save_path = os.path.join(save_dir, f"GDbest_{i}.pth")
+            save_path = os.path.join(save_dir, f"GDRNNbest_{i}.pth")
             torch.save(model, save_path)
             logging.info(f"save best model in {save_path}")
         # save model every 10 epochs
         elif i%10==0:
-            torch.save(model, os.path.join(save_dir, f"GDlast_{i}.pth"))
+            torch.save(model, os.path.join(save_dir, f"GDRNNlast_{i}.pth"))
 
     # save loss
     scio.savemat(os.path.join(save_dir, 'loss.mat'), {'loss': lossLoader})
