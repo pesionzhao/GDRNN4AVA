@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import scipy.io as io
 from NetworkDataSet import M_test_dataset
 from ForwardModel.Zoeppritz import MyZoeppritzOneTheta
-from UnetModel import UNetModel
+from UNet_original import UNetModel
 from util.utils import read_yaml
 import argparse
 import scipy.io as scio
