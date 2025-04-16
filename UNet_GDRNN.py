@@ -77,7 +77,7 @@ class UNetWithAll(nn.Module):
         O2 = self.c6(self.u2(O1, f2))
         O3 = self.c7(self.u3(O2, f1))
 
-        output1 = self.out(O3)  # 降维到3
+        output1 = self.out(O3)
         eta = self.eta.view(1, 3, 1)
         output2 = output1.squeeze(1)
         return output2*eta
