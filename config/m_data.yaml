@@ -48,14 +48,10 @@ batchsize_predict: 10
 batchsize_data_driven: 10
 batchsize_physics_driven: 8
 
-Trace: 10
-Trace2: 1
-miu: 0.3
-eta: 0.3
-lam: 0.1
-theta_len: 15
+miu: 0.4 # loss constraint
+lam: 0.3
 
-LearningRate: 1e-3
 epoch: 200
+time_step: 7
 save_path: 'weights_dir'
 
