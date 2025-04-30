@@ -41,6 +41,8 @@ Format of dataset for physice-driven:
 }
 ```
 
+You can download the dataset from [Marmousi_test_dataset.mat](https://drive.google.com/file/d/1xCI-EvziZgQ7W61Ya5NsNoDAfB2XJfbJ/view?usp=drive_link) and [Marmousi_train_dataset.mat](https://drive.google.com/file/d/1Cqm4t5UjgduyhkAV1-TtVGaN3BeMvTRh/view?usp=drive_link) from Google Drive. And put them in the data folder: `./dataset/`.
+
 Train GDRNN script:
 
 ```bash
