@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import DataLoader
 import scipy.io as scio
 from NetworkDataSet import M_train_dataset, M_test_dataset
-from UNet_original import UNetModel
+from UNetWithAll import UNetWithAll
 from ForwardModel.Zoeppritz import MyZoeppritzOneTheta
 import numpy as np
 from util.utils import read_yaml
@@ -24,9 +24,9 @@ parser = argparse.ArgumentParser(description='dual inversion train script',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--device', '-d', help='device id', default="cuda:4")
 parser.add_argument('--resume', '-r', help='resume path', default=None)
-parser.add_argument('--epoch', type=int, help='epochs', default=None)
+parser.add_argument('--epoch', '-e', type=int, help='epochs', default=150)
 parser.add_argument('--cfg', '-c', help='yaml', default='config/m_data.yaml')
-parser.add_argument('--step', '-t', help='RNNs time step', default=None)
+parser.add_argument('--step', '-t', help='RNNs time step', type=int, default=None)
 args = parser.parse_args()
 device = torch.device(args.device)
 
@@ -34,10 +34,10 @@ cfg = read_yaml(args.cfg)
 cfg = argparse.Namespace(**cfg)
 
 LearningRate = 1e-3
-epoch = args.epoch if args.epoch is not None else cfg.epoch
+epoch = args.epoch if args.epoch is not None else int(cfg.epoch)
 
 # RNNs time step
-time_step = args.step if args.step is not None else cfg.time_step
+time_step = args.step if args.step is not None else int(cfg.time_step)
 
 zoeppritz = MyZoeppritzOneTheta.apply
 testmat = scio.loadmat(cfg.augdata_path)
@@ -164,7 +164,7 @@ if __name__ == '__main__':
     if args.resume is not None:
         model = torch.load(args.resume).to(device)
     else:
-        model = UNetModel().to(device)
+        model = UNetWithAll().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LearningRate, weight_decay=0.9)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.98)
 
@@ -236,7 +236,7 @@ if __name__ == '__main__':
             scheduler.step()
 
         lossLoader.append((epoch_loss / len(train_dataset1)).item())
-        logging.info(f"epoch{i + 1} loss is {epoch_loss / len(train_dataset1).item()}")
+        logging.info(f"epoch{i + 1} loss is {(epoch_loss / len(train_dataset1)).item()}")
         t1 = time.time()
         logging.info(f"epoch{i + 1} execution time is {t1 - t0}")
 

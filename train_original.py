@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import DataLoader
 import scipy.io as scio
 from NetworkDataSet import M_train_dataset, M_test_dataset
-from UNet_GDRNN import UNetWithAll
+from UNetWithAll import UNetWithAll
 # from Forward.Zoeppritz import Zoeppritz
 from ForwardModel.Zoeppritz import MyZoeppritzOneTheta
 import numpy as np
@@ -189,7 +189,7 @@ if __name__ == '__main__':
             loss_value.backward()
             optimizer.step()
 
-        logging.info(f"epoch{i + 1} loss is {epoch_loss / len(train_dataset1).item()}")
+        logging.info(f"epoch{i + 1} loss is {(epoch_loss / len(train_dataset1)).item()}")
         t1 = time.time()
         logging.info(f"epoch{i + 1} execution time is {t1 - t0}")
         torch.save(model, os.path.join(save_dir, "last.pth"))

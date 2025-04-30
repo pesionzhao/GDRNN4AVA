@@ -51,7 +51,7 @@ inital_list = []
 with torch.no_grad():
     for S_sample, M_sample_initial in test_dataloader:
         S_sample, M_sample_initial = S_sample.to(device), M_sample_initial.to(device)
-        output1 = model(M_sample_initial)
+        output1 = model(S_sample)
         output_list.append(output1)
         inital_list.append(M_sample_initial)
 

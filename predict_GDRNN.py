@@ -22,10 +22,11 @@ parser = argparse.ArgumentParser(description='dual inversion predict script',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--weight', '-w', help='weight path', default="./weights_dir/weights/GDRNNbest_21.pth")
 parser.add_argument('--output', '-o', help='output file name', default=None)
-parser.add_argument('--device', '-d', help='device id', default="cuda:4")
-parser.add_argument('--name', '-n', help='save folder name', default="HRS")
+parser.add_argument('--device', '-d', help='device id', default="cuda:0")
+parser.add_argument('--name', '-n', help='save folder name', default="custom_name")
 parser.add_argument('--cfg', '-c', help='yaml', default='config/m_data.yaml')
-parser.add_argument('--step', '-t', help='RNNs time step', type=int, default=7)
+parser.add_argument('--step', '-t', help='RNNs time step', type=int, default=9)
+parser.add_argument('--batch', '-b', help='batchsize', type=int, default=None)
 args = parser.parse_args()
 # args = parser.parse_args(['--weights','./weights_dir/weights6/last.pth', '--device', 'cuda:0']) # custom_args
 config_path = args.cfg
@@ -59,10 +60,10 @@ logging.basicConfig(
 )
 
 device = torch.device(args.device)  
-
+batchsize = args.batch if args.batch is not None else cfg.batchsize_predict
 test_dataset = M_test_dataset(cfg.testdata_path, cfg.testdata_traces, cfg.testdata_layers, cfg.testdata_usetraces,
                               cfg.testdata_uselayers)
-test_dataloader = DataLoader(dataset=test_dataset, batch_size=cfg.batchsize_predict, num_workers=0)
+test_dataloader = DataLoader(dataset=test_dataset, batch_size=batchsize, num_workers=0)
 
 model = torch.load(weights_path).to(device) 
 model.eval()
@@ -153,7 +154,7 @@ def model_driving(M, S, wavemat):
 output_list = []
 i = 1
 for S_sample, M_sample_initial in test_dataloader:
-    logging.info('%d th traces inversing' % (i * cfg.batchsize_predict))
+    logging.info('%d th traces inversing' % (i * batchsize))
     S_sample, M_sample_initial = S_sample.to(device), M_sample_initial.to(device)
     output1 = model_driving(M_sample_initial, S_sample, wavemat)
     output_list.append(output1)
