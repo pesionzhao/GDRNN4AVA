@@ -44,13 +44,13 @@ Format of dataset for physice-driven:
 Train GDRNN script:
 
 ```bash
-python train_GDRNN.py --cfg config/m_data.yaml --device cuda:0 --epoch 60 --step 5
+python train_GDRNN.py --cfg config/m_data.yaml --device cuda:0 --epoch 60 --step 9
 ```
 
 Test GDRNN script:
 
 ```bash
-python predict_GDRNN.py --cfg config/m_data.yaml --device cuda:0 --weight weights_dir/weights/GDRNNbest_21.pth --name custom_data --step 7
+python predict_GDRNN.py --cfg config/m_data.yaml --device cuda:0 --weight weights_dir/weights/GDRNNbest_21.pth --name custom_data --step 9
 ```
 
 Inversion result for Marmousi dataset as follows, The dashed line is the log-well position. 
